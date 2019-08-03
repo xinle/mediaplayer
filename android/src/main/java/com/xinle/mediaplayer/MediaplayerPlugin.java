@@ -44,8 +44,7 @@ public class MediaplayerPlugin implements MethodCallHandler {
             case "play":
                 String url = call.argument("url");
                 Integer progress = call.argument("progress");
-                Boolean isLooper = call.argument("isLooper");
-                play(url ,progress ,isLooper);
+                play(url ,progress);
                 response.success(null);
                 break;
             case "pause":
@@ -93,27 +92,30 @@ public class MediaplayerPlugin implements MethodCallHandler {
         }
     }
 
+    private boolean mShoudPlay = true;
     private void pause() {
         handler.removeCallbacks(sendData);
-        if (mediaPlayer != null) {
+        if (mediaPlayer != null && mediaPlayer.isPlaying()) {
             mediaPlayer.pause();
             channel.invokeMethod("audio.onPause", true);
+        } else {
+            mShoudPlay = false;
+            channel.invokeMethod("audio.onPause", false);
         }
     }
 
     private String lastUrl;
     private int currProgresss;
+    private boolean lastIsPrepared = false;
 
-    private void play(String url, Integer progress, Boolean isLooper) {
+    private void play(String url, Integer progress) {
         if(progress == null) {
             progress = 0;
         }
 
         currProgresss = progress;
+        mShoudPlay = true;
 
-        if(isLooper == null) {
-            isLooper = false;
-        }
         if (mediaPlayer == null) {
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
@@ -121,7 +123,10 @@ public class MediaplayerPlugin implements MethodCallHandler {
             mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
                 @Override
                 public void onPrepared(MediaPlayer mp) {
-                    playStart();
+                    lastIsPrepared = true;
+                    if(mShoudPlay) {
+                        playStart();
+                    }
                 }
             });
 
@@ -142,7 +147,6 @@ public class MediaplayerPlugin implements MethodCallHandler {
             });
         }
 
-        mediaPlayer.setLooping(isLooper);
         if (!TextUtils.equals(url, lastUrl)) {
             try {
                 mediaPlayer.setDataSource(url);
@@ -152,11 +156,18 @@ public class MediaplayerPlugin implements MethodCallHandler {
                 return;
             }
             mediaPlayer.prepareAsync();
+            lastIsPrepared = false;
+            channel.invokeMethod("audio.onPrepareing", null);
             lastUrl = url;
             return;
         }
 
-        playStart();
+        if(lastIsPrepared) {
+            playStart();
+        } else {
+            mediaPlayer.prepareAsync();
+            channel.invokeMethod("audio.onPrepareing", null);
+        }
     }
 
     private void playStart() {

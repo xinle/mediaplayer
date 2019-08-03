@@ -43,7 +43,9 @@ FlutterMethodChannel *_channel;
                                   ^{
                                       NSString *url = call.arguments[@"url"];
                                       int isLocal = [call.arguments[@"isLocal"] intValue];
-                                      [self play:url isLocal:isLocal];
+                                      int progress = [call.arguments[@"progress"] intValue];
+                      
+                                      [self play:url isLocal:isLocal progress:progress];
                                       result(nil);
                                   },
                               @"pause":
@@ -76,7 +78,7 @@ FlutterMethodChannel *_channel;
     }
 }
 
-- (void)play:(NSString*)url isLocal:(int)isLocal {
+- (void)play:(NSString*)url isLocal:(int)isLocal progress:(int)progress {
     if (![url isEqualToString:lastUrl]) {
         [playerItem removeObserver:self
                         forKeyPath:@"player.currentItem.status"];
@@ -92,7 +94,7 @@ FlutterMethodChannel *_channel;
             playerItem = [[AVPlayerItem alloc] initWithURL:[NSURL URLWithString:url]];
         }
         lastUrl = url;
-
+        
         id anobserver = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification
                                                                           object:playerItem
                                                                            queue:nil
@@ -102,6 +104,8 @@ FlutterMethodChannel *_channel;
                                                                       }];
         [observers addObject:anobserver];
 
+        [self seek:CMTimeMakeWithSeconds(progress, 1)];
+        
         if (player) {
             [player replaceCurrentItemWithPlayerItem:playerItem];
         } else {
@@ -109,7 +113,7 @@ FlutterMethodChannel *_channel;
             // Stream player position.
             // This call is only active when the player is active so there's no need to
             // remove it when player is paused or stopped.
-            CMTime interval = CMTimeMakeWithSeconds(0.2, NSEC_PER_SEC);
+            CMTime interval = CMTimeMakeWithSeconds(0.8, NSEC_PER_SEC);
             id timeObserver = [player addPeriodicTimeObserverForInterval:interval queue:nil usingBlock:^(CMTime time){
                 [self onTimeInterval:time];
             }];
@@ -122,9 +126,7 @@ FlutterMethodChannel *_channel;
                                   options:0
                                   context:nil];
     }
-    [self onStart];
     [player play];
-    isPlaying = true;
 }
 
 - (void)onStart {
@@ -170,6 +172,8 @@ FlutterMethodChannel *_channel;
     if ([keyPath isEqualToString:@"player.currentItem.status"]) {
         if ([[player currentItem] status] == AVPlayerItemStatusReadyToPlay) {
             [self onStart];
+            
+            isPlaying = true;
         } else if ([[player currentItem] status] == AVPlayerItemStatusFailed) {
             [_channel invokeMethod:@"audio.onError" arguments:@[(player.currentItem.error.localizedDescription)]];
         }

@@ -16,6 +16,10 @@ enum AudioPlayerState {
   /// however we differentiate it because some clients might want to know when
   /// the playback is done versus when the user has stopped the playback.
   COMPLETED,
+
+  PREPAREING,  // 缓存中
+
+  ERROR,
 }
 
 const MethodChannel _channel =
@@ -98,9 +102,13 @@ class AudioPlayer {
         _state = AudioPlayerState.COMPLETED;
         _playerStateController.add(AudioPlayerState.COMPLETED);
         break;
+      case "audio.onPrepareing":
+        _state = AudioPlayerState.PREPAREING;
+        _playerStateController.add(AudioPlayerState.PREPAREING);
+        break;
       case "audio.onError":
       // If there's an error, we assume the player has stopped.
-        _state = AudioPlayerState.STOPPED;
+        _state = AudioPlayerState.ERROR;
         _playerStateController.addError(call.arguments);
         // TODO: Handle error arguments here. It is not useful to pass this
         // to the client since each platform creates different error string
@@ -110,4 +118,19 @@ class AudioPlayer {
         throw new ArgumentError('Unknown method ${call.method} ');
     }
   }
+
+  Future<void> dispose() async {
+    List<Future> futures = [];
+
+    if (!_playerStateController.isClosed) {
+      futures.add(_playerStateController.close());
+    }
+
+    if (!_positionController.isClosed) {
+      futures.add(_positionController.close());
+    }
+
+    await Future.wait(futures);
+  }
+
 }
