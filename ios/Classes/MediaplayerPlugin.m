@@ -125,8 +125,17 @@ FlutterMethodChannel *_channel;
                                forKeyPath:@"player.currentItem.status"
                                   options:0
                                   context:nil];
+        [player play];
+
+    } else {
+        [player play];
+
+        if([[player currentItem] status] == AVPlayerItemStatusReadyToPlay) {
+            [self onStart];
+            
+            isPlaying = true;
+        }
     }
-    [player play];
 }
 
 - (void)onStart {
