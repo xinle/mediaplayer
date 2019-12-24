@@ -99,7 +99,7 @@ FlutterMethodChannel *_channel;
                                                                           object:playerItem
                                                                            queue:nil
                                                                       usingBlock:^(NSNotification* note){
-                                                                          [self stop];
+                                                                          // [self stop];
                                                                           [_channel invokeMethod:@"audio.onComplete" arguments:nil];
                                                                       }];
         [observers addObject:anobserver];
