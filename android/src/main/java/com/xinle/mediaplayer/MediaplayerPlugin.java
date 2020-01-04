@@ -148,6 +148,7 @@ public class MediaplayerPlugin implements MethodCallHandler {
         }
 
         if (!TextUtils.equals(url, lastUrl)) {
+            mediaPlayer.reset();
             try {
                 mediaPlayer.setDataSource(url);
             } catch (IOException e) {
